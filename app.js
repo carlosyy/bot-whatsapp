@@ -8,11 +8,26 @@ const moment = require('moment');
 const ora = require('ora');
 const chalk = require('chalk');
 const ExcelJS = require('exceljs');
+
 const qrcode = require('qrcode-terminal');
 const { flowConversation } = require('./conversation')
 const { Client, MessageMedia } = require('whatsapp-web.js');
 const app = express();
-app.use(express.urlencoded({ extended: true }))
+app.use(express.urlencoded({ extended: true }));
+app.use(express.urlencoded({ extended: true }));
+
+const api = express();
+api.use(express.urlencoded({ extended: true, limit: '50mb' }));
+api.use(express.json({ limit: '50mb' }));
+
+api.use((req, res, next) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    //res.setHeader('Access-Control-Allow-Origin', 'multipart/form-data');
+    next();
+});
+
 const SESSION_FILE_PATH = './session.json';
 let client;
 let sessionData;
@@ -49,7 +64,7 @@ const sendMedia = (number, fileName) => {
 const sendMessage = (number = null, text = null) => {
     number = number.replace('@c.us', '');
     number = `${number}@c.us`
-    const message = text || `Hola soy un BOT recuerda https://www.youtube.com/leifermendez`;
+    const message = text || `Hola soy un BOT`;
     client.sendMessage(number, message);
     readChat(number, message)
     console.log(`${chalk.red('⚡⚡⚡ Enviando mensajes....')}`);
@@ -62,6 +77,7 @@ const listenMessage = () => {
     client.on('message', async msg => {
         const { from, to, body } = msg;
         //34691015468@c.us
+        console.log(from);
         console.log(msg.hasMedia);
         if (msg.hasMedia) {
             const media = await msg.downloadMedia();
@@ -88,6 +104,7 @@ const listenMessage = () => {
 
 const replyAsk = (from, answer) => new Promise((resolve, reject) => {
     console.log(`---------->`, answer);
+    console.log(from);
     if (answer === 'Quieromeme') {
         sendMedia(from, 'meme-1.png')
         resolve(true)
@@ -258,23 +275,10 @@ const greetCustomer = (from) => new Promise((resolve, reject) => {
     const pathExcel = `./chats/${from}@c.us.xlsx`;
     if (!fs.existsSync(pathExcel)) {
         const firstMessage = [
-            '👋 Ey! que pasa bro',
-            'Recuerda subscribirte a mi canal de YT',
-            'https://www.youtube.com/leifermendez',
-            'de regalo te  dejo algunos de mis cursos',
-            '🔴 Aprende ANGULAR desde cero 2021 ⮕ https://bit.ly/367tJ32',
-            '✅ Aprende NODE desde cero 2021 ⮕ https://bit.ly/3od1Bl6',
-            '🔵 (Socket.io) NODE (Tutorial) ⮕ https://bit.ly/3pg1Q02',
-            '------',
-            '------',
-            'Veo que es la primera vez que nos escribes ¿Quieres que te envie un MEME?',
-            'Responde Quieromeme'
+            'a'
         ].join(' ')
 
         sendMessage(from, firstMessage)
-        sendMedia(from, 'curso-1-1.png')
-        sendMedia(from, 'curso-2.png')
-        sendMedia(from, 'curso-3.png')
     }
     resolve(true)
 })
@@ -302,6 +306,33 @@ app.post('/send', sendMessagePost);
 (fs.existsSync(SESSION_FILE_PATH)) ? withSession() : withOutSession();
 
 
+const sendMessageFromAppPost = (req, res) => {
+    const { message, number } = req.body
+    console.log(message, number);
+    sendMessage(number, message)
+    res.send({ status: 'Enviado!' })
+}
+
+api.post('/sendmessage', (req, res) => {
+    const { number, message } = req.body;
+    //console.log(req.body);
+    //console.log(message);
+    console.log(number);
+    let prefixnumber = `${number}@c.us`;
+
+    var t = new MessageMedia("application/pdf", message, "archiv");
+
+    client.sendMessage(prefixnumber, t);
+    let obj = {
+        t: 'ads',
+        v: 1
+    }
+    return res.send(obj);
+});
+
 app.listen(9000, () => {
+    console.log('Server ready!');
+})
+api.listen(9001, () => {
     console.log('Server ready!');
 })
